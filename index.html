@@ -8,10 +8,8 @@
         <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
 
         <style>
-            /* touch-action: none es CRUCIAL para que el navegador no haga zoom a la página web, sino al objeto */
             body { margin: 0; overflow: hidden; touch-action: none; font-family: 'Arial', sans-serif; background-color: #333; }
             
-            /* --- PANTALLA DE INICIO --- */
             #splash-screen {
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
                 background-color: white; z-index: 9999;
@@ -19,9 +17,7 @@
                 justify-content: center; align-items: center;
                 transition: opacity 0.5s ease-out;
             }
-
             #splash-screen img.logo { max-width: 50%; margin-bottom: 20px; height: auto; }
-
             .loader {
                 border: 5px solid #f3f3f3; border-top: 5px solid #d4af37; 
                 border-radius: 50%; width: 40px; height: 40px;
@@ -35,7 +31,6 @@
                 border-radius: 25px; cursor: pointer; text-transform: uppercase;
                 font-weight: bold; box-shadow: 0px 4px 10px rgba(0,0,0,0.2);
             }
-            #start-btn:active { transform: scale(0.95); }
 
             #whatsapp-button {
                 display: none; position: fixed; bottom: 20px; left: 20px; z-index: 9998;
@@ -45,14 +40,22 @@
         </style>
 
         <script>
-            // --- COMPONENTE: ARREGLAR MATERIALES OSCUROS ---
+            // Detectar errores de carga del modelo
+            AFRAME.registerComponent('model-error-handler', {
+                init: function () {
+                    this.el.addEventListener('model-error', function (e) {
+                        alert("Error: No se encuentra el archivo 'assets/spiderman.glb'. Verifica la carpeta.");
+                    });
+                }
+            });
+
             AFRAME.registerComponent('fix-materials', {
                 init: function () {
                     this.el.addEventListener('model-loaded', function (e) {
                         var mesh = e.detail.model;
                         mesh.traverse(function (node) {
                             if (node.isMesh && node.material) {
-                                node.material.metalness = 0; // Quita el efecto metálico oscuro
+                                node.material.metalness = 0; 
                                 node.material.needsUpdate = true;
                             }
                         });
@@ -60,7 +63,6 @@
                 }
             });
 
-            // --- LÓGICA PRINCIPAL ---
             document.addEventListener("DOMContentLoaded", () => {
                 const splash = document.getElementById('splash-screen');
                 const startBtn = document.getElementById('start-btn');
@@ -68,14 +70,13 @@
                 const modelEntity = document.getElementById('animatedModel');
                 const video = document.getElementById('vid');
                 const waBtn = document.getElementById('whatsapp-button');
-                
-                // Simulación de carga
+                const debugBox = document.getElementById('debug-box');
+
                 setTimeout(() => {
                     loader.style.display = 'none';
                     startBtn.style.display = 'block';
                 }, 2000); 
 
-                // INICIAR EXPERIENCIA
                 startBtn.addEventListener('click', () => {
                     splash.style.opacity = '0';
                     setTimeout(() => { splash.style.display = 'none'; }, 500);
@@ -84,6 +85,8 @@
                          modelEntity.setAttribute('visible', 'true');
                          modelEntity.setAttribute('animation-mixer', 'timeScale: 1');
                     }
+                    if(debugBox) debugBox.setAttribute('visible', 'true'); // Mostrar cubo de prueba
+                    
                     waBtn.style.display = 'block';
 
                     if(video) {
@@ -91,25 +94,18 @@
                     }
                 });
 
-                // ==========================================
-                //    SISTEMA DE GESTOS (ZOOM Y ROTACIÓN)
-                // ==========================================
+                // --- GESTOS (Ajustados para escala humana) ---
                 let startX = 0;
                 let startY = 0;
                 let initialDistance = 0;
                 let initialScaleVector = new THREE.Vector3();
-                let currentScale = 0.015; // Variable para guardar la escala actual
 
-                // 1. INICIO DEL TOQUE
                 window.addEventListener('touchstart', (e) => {
                     if (splash.style.display !== 'none') return;
-
                     if(e.touches.length === 1) {
-                        // Un dedo: Rotación
                         startX = e.touches[0].clientX;
                         startY = e.touches[0].clientY;
                     } else if (e.touches.length === 2) {
-                        // Dos dedos: Zoom (Guardamos distancia inicial)
                         var dx = e.touches[0].clientX - e.touches[1].clientX;
                         var dy = e.touches[0].clientY - e.touches[1].clientY;
                         initialDistance = Math.sqrt(dx * dx + dy * dy);
@@ -117,61 +113,36 @@
                     }
                 });
 
-                // 2. MOVIMIENTO DEL TOQUE
                 window.addEventListener('touchmove', (e) => {
                     if (splash.style.display !== 'none') return;
 
                     if(e.touches.length === 1) {
-                        // --- ROTACIÓN ---
                         var deltaX = e.touches[0].clientX - startX;
                         var deltaY = e.touches[0].clientY - startY;
                         startX = e.touches[0].clientX;
                         startY = e.touches[0].clientY;
 
                         modelEntity.object3D.rotation.y += deltaX * 0.01;
-                        
-                        // Limitamos la rotación vertical para que no de la vuelta completa
-                        var newRotX = modelEntity.object3D.rotation.x + (deltaY * 0.01);
-                        modelEntity.object3D.rotation.x = Math.min(Math.max(newRotX, -0.8), 0.8);
-
+                        modelEntity.object3D.rotation.x += deltaY * 0.01; // Libre rotación X para encontrarlo
                     } else if (e.touches.length === 2 && initialDistance > 0) {
-                        // --- ZOOM (ACERCAR / ALEJAR) ---
                         var dx = e.touches[0].clientX - e.touches[1].clientX;
                         var dy = e.touches[0].clientY - e.touches[1].clientY;
                         var currentDistance = Math.sqrt(dx * dx + dy * dy);
-                        
-                        // Factor de escala basado en cuánto se separaron los dedos
                         var scaleFactor = currentDistance / initialDistance;
                         var newScale = initialScaleVector.x * scaleFactor;
                         
-                        // --- LIMITES DEL ZOOM (Aquí controlas cuánto se puede acercar/alejar) ---
-                        const minScale = 0.001; // Muy pequeño (alejar mucho)
-                        const maxScale = 3.0;   // Muy grande (acercar mucho)
-                        
-                        newScale = Math.min(Math.max(newScale, minScale), maxScale);
-
-                        // Aplicar escala
+                        // Límites ajustados para escala 3D normal
+                        newScale = Math.min(Math.max(newScale, 0.1), 5.0);
                         modelEntity.object3D.scale.set(newScale, newScale, newScale);
-                        currentScale = newScale; // Actualizar referencia
                     }
                 });
-
-                // 3. ZOOM CON RUEDA DEL MOUSE (Para pruebas en PC)
+                
+                 // Zoom mouse
                 window.addEventListener('wheel', (e) => {
                     if (splash.style.display !== 'none') return;
-                    
-                    // Ajustar velocidad del zoom
                     const zoomSpeed = 0.001; 
-                    let delta = -e.deltaY * zoomSpeed;
-                    
-                    let newScale = modelEntity.object3D.scale.x + delta;
-                    
-                    // Límites
-                    const minScale = 0.001;
-                    const maxScale = 3.0;
-                    
-                    newScale = Math.min(Math.max(newScale, minScale), maxScale);
-                    
+                    let newScale = modelEntity.object3D.scale.x - (e.deltaY * zoomSpeed);
+                    newScale = Math.min(Math.max(newScale, 0.1), 5.0);
                     modelEntity.object3D.scale.set(newScale, newScale, newScale);
                 });
             });
@@ -186,8 +157,7 @@
             <button id="start-btn">VER ANIMACIÓN</button>
         </div>
 
-        <a href="https://wa.me/593983088889?text=Hola%20Bhastian,%20vi%20su%20modelo%203D." 
-           target="_blank" id="whatsapp-button">
+        <a href="https://wa.me/593983088889" target="_blank" id="whatsapp-button">
            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
         </a>
 
@@ -199,26 +169,28 @@
             id="scene" embedded>
 
             <a-assets>
-                <video id="vid" src="assets/assetspiderman.mp4" preload="auto" loop crossorigin webkit-playsinline playsinline></video>
+                <video id="vid" src="assets/batman.mp4" preload="auto" loop crossorigin webkit-playsinline playsinline></video>
                 <a-asset-item id="miModelo" src="assets/spiderman.glb"></a-asset-item>
             </a-assets>
 
-            <a-entity light="type: ambient; intensity: 1; color: #ffffff"></a-entity>
+            <a-entity light="type: ambient; intensity: 2; color: #ffffff"></a-entity>
             <a-entity light="type: directional; intensity: 1.5; castShadow: true" position="3 4 5"></a-entity>
-            <a-entity light="type: directional; intensity: 0.5" position="-3 2 5"></a-entity>
+
+            <a-box id="debug-box" position="0 0.5 -1" color="red" visible="false" scale="0.5 0.5 0.5"></a-box>
 
             <a-entity
                 id="animatedModel"
                 visible="false"
                 gltf-model="#miModelo"
-                scale="0.015 0.015 0.015"
+                scale="1 1 1"
                 position="0 0 0" 
                 rotation="0 20 0" 
                 animation-mixer="loop: repeat; timeScale: 0"
                 fix-materials
+                model-error-handler
             ></a-entity>
 
-            <a-entity camera position="0 1.6 4" look-controls="enabled: false"></a-entity>
+            <a-entity camera position="0 1.5 3" look-controls="enabled: false"></a-entity>
 
         </a-scene>
     </body>
