@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>Experiencia 3D Bhastian</title>
+    <title>Experiencia 3D Bhastian - Limitada</title>
 
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
@@ -70,7 +70,7 @@
     </style>
 
     <script>
-        // --- COMPONENTE 1: CONTROLADOR DEL VISOR 3D ---
+        // --- COMPONENTE: CONTROLADOR DEL VISOR 3D ---
         AFRAME.registerComponent('model-viewer', {
             init: function () {
                 this.model = this.el;
@@ -82,25 +82,25 @@
                 this.initialScaleVector = new THREE.Vector3();
                 this.initialDistance = 0;
 
-                // Límite de 60 grados en radianes (60 * PI / 180)
-                this.limitRad = 60 * (Math.PI / 180); 
+                // --- CAMBIO AQUI: Límite de 30 grados ---
+                // Convertimos 30 grados a radianes (30 * PI / 180)
+                this.limitRad = 30 * (Math.PI / 180); 
+                // Esto equivale aproximadamente a 0.52 radianes
 
                 // --- MANEJO DE LA CARGA ---
-                const scene = document.querySelector('a-scene');
                 const uiLayer = document.getElementById('ui-layer');
                 const loader = document.querySelector('.loader');
                 const startBtn = document.getElementById('start-btn');
                 const waBtn = document.getElementById('whatsapp-button');
                 const videoAudio = document.getElementById('vid');
 
-                // Cuando el modelo 3D se carga
+                // Cuando el modelo 3D se carga completamente
                 this.el.addEventListener('model-loaded', () => {
-                    console.log("Modelo cargado");
-                    // Ocultamos spinner y mostramos botón
+                    console.log("Modelo cargado. Listo para mostrar botón.");
                     loader.style.display = 'none';
                     startBtn.style.display = 'block';
                     
-                    // Corrección materiales (metalness)
+                    // Corrección materiales (evitar que se vean negros)
                     this.el.object3D.traverse((node) => {
                         if (node.isMesh && node.material) {
                             node.material.metalness = 0;
@@ -111,28 +111,23 @@
 
                 // Acción del botón "VER EXPERIENCIA"
                 startBtn.addEventListener('click', () => {
-                    // 1. Desvanecer capa de carga
                     uiLayer.style.opacity = '0';
                     setTimeout(() => { uiLayer.style.display = 'none'; }, 500);
 
-                    // 2. Activar interacción y UI
                     this.isInteractable = true;
                     waBtn.style.display = 'block';
 
-                    // 3. Reproducir Audio/Video (Necesario interacción de usuario)
                     if(videoAudio) {
                         videoAudio.play().then(() => {
                             videoAudio.volume = 1.0;
                         }).catch(e => console.error("Error audio:", e));
                     }
-
-                    // 4. Iniciar animación del modelo
                     this.el.setAttribute('animation-mixer', 'timeScale: 1');
                 });
 
                 // --- GESTOS TÁCTILES ---
                 
-                // Touch Start
+                // Touch Start (Guardar posición inicial)
                 window.addEventListener('touchstart', (e) => {
                     if (!this.isInteractable) return;
 
@@ -152,30 +147,30 @@
                     if (!this.isInteractable) return;
 
                     if (e.touches.length === 1) {
-                        // Un dedo: ROTACIÓN
+                        // --- ROTACIÓN (1 dedo) ---
                         const deltaX = e.touches[0].clientX - this.startX;
                         const deltaY = e.touches[0].clientY - this.startY;
 
                         this.startX = e.touches[0].clientX;
                         this.startY = e.touches[0].clientY;
 
-                        // Sensibilidad
+                        // Velocidad de giro (ajusta si es muy rápido/lento)
                         const speed = 0.005;
 
-                        // Calcular nueva rotación Y (Horizontal)
+                        // 1. Calcular rotación Y (Izquierda/Derecha)
                         let newRotY = this.el.object3D.rotation.y + (deltaX * speed);
-                        // CLAMP (Limitar) a +/- 60 grados
+                        // 2. CLAMP: Limitar entre -30 grados y +30 grados
                         newRotY = Math.max(-this.limitRad, Math.min(this.limitRad, newRotY));
                         this.el.object3D.rotation.y = newRotY;
 
-                        // Calcular nueva rotación X (Vertical)
+                        // 3. Calcular rotación X (Arriba/Abajo)
                         let newRotX = this.el.object3D.rotation.x + (deltaY * speed);
-                        // CLAMP (Limitar) a +/- 60 grados (o ajusta según prefieras, ej: -30 a 30)
+                        // 4. CLAMP: Limitar entre -30 grados y +30 grados
                         newRotX = Math.max(-this.limitRad, Math.min(this.limitRad, newRotX));
                         this.el.object3D.rotation.x = newRotX;
 
                     } else if (e.touches.length === 2 && this.initialDistance > 0) {
-                        // Dos dedos: ZOOM
+                        // --- ZOOM (2 dedos) ---
                         const dx = e.touches[0].clientX - e.touches[1].clientX;
                         const dy = e.touches[0].clientY - e.touches[1].clientY;
                         const currentDistance = Math.sqrt(dx * dx + dy * dy);
@@ -186,9 +181,9 @@
                         let newY = this.initialScaleVector.y * scaleFactor;
                         let newZ = this.initialScaleVector.z * scaleFactor;
 
-                        // Limites del Zoom
-                        const minScale = 0.005; // Ajusta según tu modelo
-                        const maxScale = 0.03;  // Ajusta según tu modelo
+                        // Límites del Zoom (Ajusta estos valores según tu modelo)
+                        const minScale = 0.005; // Zoom máximo (más cerca)
+                        const maxScale = 0.03;  // Zoom mínimo (más lejos)
 
                         newX = Math.max(minScale, Math.min(maxScale, newX));
                         newY = Math.max(minScale, Math.min(maxScale, newY));
@@ -211,7 +206,7 @@
         <button id="start-btn">VER EXPERIENCIA</button>
     </div>
 
-    <a href="https://wa.me/593983088889?text=Hola%20Bhastian,%20me%20interesa%20tu%20trabajo." 
+    <a href="https://wa.me/593983088889?text=Hola%20Bhastian,%20vi%20la%20experiencia%203D." 
        target="_blank" id="whatsapp-button">
         <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
     </a>
@@ -220,16 +215,15 @@
         renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true;"
         vr-mode-ui="enabled: false"
         loading-screen="enabled: false"
-        background="color: #f0f0f0"> <a-assets>
-            <video id="vid" src="assets/assetspiderman.mp4" preload="auto" loop crossorigin="anonymous" playsinline></video>
+        background="color: #e0e0e0"> <a-assets>
+            <video id="vid" src="assets/assetspiderman.mp4" preload="auto" loop crossorigin="anonymous" playsinline webkit-playsinline></video>
             <a-asset-item id="miModelo" src="assets/spiderman.glb"></a-asset-item>
         </a-assets>
 
         <a-entity light="type: ambient; intensity: 1; color: #ffffff"></a-entity>
-        <a-entity light="type: directional; intensity: 1.5" position="2 4 4" cast-shadow="true"></a-entity>
-        <a-entity light="type: point; intensity: 0.5" position="-2 2 2"></a-entity>
+        <a-entity light="type: directional; intensity: 1.5" position="2 4 4"></a-entity>
 
-        <a-entity camera position="0 1.5 3" look-controls="enabled: false"></a-entity>
+        <a-entity camera position="0 1.6 3.5" look-controls="enabled: false"></a-entity>
 
         <a-entity 
             id="animatedModel"
