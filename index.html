@@ -102,7 +102,7 @@
 
                     window.addEventListener('touchmove', (e) => {
                         if(e.touches.length === 1) {
-                            // Rotación (sin cambios)
+                            // Rotación
                             var deltaX = e.touches[0].clientX - this.startX;
                             var deltaY = e.touches[0].clientY - this.startY;
                             this.startX = e.touches[0].clientX;
@@ -128,8 +128,8 @@
                              var newY = this.initialScaleVector.y * scaleFactor;
                              var newZ = this.initialScaleVector.z * scaleFactor;
 
-                             // --- CAMBIO AQUÍ: Actualizado el mínimo al nuevo valor (0.012 + 40%) ---
-                             const minScale = 0.0168; 
+                             // --- CAMBIO AQUÍ: Actualizado el mínimo al nuevo valor (0.01512) ---
+                             const minScale = 0.01512; 
                              const maxScale = 0.35;  
 
                              newX = Math.min(Math.max(newX, minScale), maxScale);
@@ -181,7 +181,7 @@
                     <a-entity
                         id="animatedModel"
                         gltf-model="#miModelo"
-                        scale="0.0168 0.0168 0.0168"
+                        scale="0.01512 0.01512 0.01512"
                         position="0 -1.5 0" 
                         rotation="0 0 0" 
                         animation-mixer="loop: repeat"
