@@ -128,8 +128,8 @@
                              var newY = this.initialScaleVector.y * scaleFactor;
                              var newZ = this.initialScaleVector.z * scaleFactor;
 
-                             // --- CAMBIO AQUÍ: Actualizado el mínimo al nuevo valor (0.01512) ---
-                             const minScale = 0.01512; 
+                             // --- CAMBIO AQUÍ: Actualizado el mínimo al nuevo valor (0.01361) ---
+                             const minScale = 0.01361; 
                              const maxScale = 0.35;  
 
                              newX = Math.min(Math.max(newX, minScale), maxScale);
@@ -181,7 +181,7 @@
                     <a-entity
                         id="animatedModel"
                         gltf-model="#miModelo"
-                        scale="0.01512 0.01512 0.01512"
+                        scale="0.01361 0.01361 0.01361"
                         position="0 -1.5 0" 
                         rotation="0 0 0" 
                         animation-mixer="loop: repeat"
