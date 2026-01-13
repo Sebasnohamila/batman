@@ -12,40 +12,77 @@
         /* El fondo base es negro (para el 3D) */
         body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; background-color: #000; }
 
-        /* --- UI DE CARGA E INICIO (FONDO BLANCO AQUI) --- */
+        /* --- UI DE CARGA E INICIO --- */
         #ui-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #ffffff; /* <--- CAMBIO: Fondo Blanco */
+            background-color: #ffffff;
             z-index: 9999;
             display: flex; flex-direction: column; 
             justify-content: center; align-items: center;
             transition: opacity 0.8s ease-out;
+            text-align: center;
         }
 
         #logo-img {
             max-width: 60%;
             height: auto;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
-        /* Rueda de Carga (Spinner) */
+        /* --- CONTENEDOR DE CARGA --- */
+        #loader-container {
+            display: flex; flex-direction: column; align-items: center;
+        }
+
         .loader {
-            border: 4px solid #f3f3f3; /* Gris muy claro para fondo blanco */
+            border: 4px solid #f3f3f3;
             border-top: 4px solid #D4AF37; /* Dorado */
             border-radius: 50%;
             width: 50px; height: 50px;
             animation: spin 1s linear infinite;
+            margin-bottom: 15px;
         }
 
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-text {
+            color: #666;
+            font-size: 14px;
+            letter-spacing: 1px;
+            animation: pulse 1.5s infinite;
+        }
+
+        /* --- CONTENEDOR DE INSTRUCCIONES (Oculto al inicio) --- */
+        #ready-container {
+            display: none; /* Se activa con JS */
+            flex-direction: column;
+            align-items: center;
+            width: 80%;
+        }
+
+        .instructions-box {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .inst-item {
+            display: flex; flex-direction: column; align-items: center;
+            font-size: 12px; color: #555;
+        }
+        
+        /* Iconos SVG simples estilizables */
+        .inst-icon {
+            width: 40px; height: 40px;
+            fill: #D4AF37; /* Iconos Dorados */
+            margin-bottom: 5px;
+        }
 
         /* Botón "VER EXPERIENCIA" */
         #start-btn {
-            display: none;
-            margin-top: 20px;
             padding: 15px 40px;
             background-color: transparent;
-            color: #D4AF37; /* Texto Dorado */
+            color: #D4AF37;
             border: 2px solid #D4AF37;
             font-size: 16px; font-weight: bold;
             cursor: pointer; border-radius: 50px;
@@ -58,6 +95,10 @@
             color: #fff;
             transform: scale(0.95);
         }
+
+        /* Animaciones */
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
         /* Botón de WhatsApp */
         #whatsapp-button {
@@ -82,15 +123,16 @@
                 this.initialDistance = 0;
 
                 // CONFIGURACIÓN DE LÍMITES
-                this.limitRad = 30 * (Math.PI / 180); // Límite de 30 grados
+                this.limitRad = 30 * (Math.PI / 180); 
                 
                 // CONFIGURACIÓN DE ZOOM
-                this.minScale = 0.012; // Tamaño original (no se puede alejar más)
-                this.maxScale = 0.035; // Zoom máximo permitido
+                this.minScale = 0.012; 
+                this.maxScale = 0.035; 
 
                 // Referencias al DOM
                 const uiLayer = document.getElementById('ui-layer');
-                const loader = document.querySelector('.loader');
+                const loaderContainer = document.getElementById('loader-container');
+                const readyContainer = document.getElementById('ready-container'); // Nuevo contenedor
                 const startBtn = document.getElementById('start-btn');
                 const waBtn = document.getElementById('whatsapp-button');
                 const videoAudio = document.getElementById('vid');
@@ -101,8 +143,10 @@
                 // 1. Evento: Cuando el modelo 3D termina de cargar
                 this.el.addEventListener('model-loaded', () => {
                     console.log("Modelo cargado.");
-                    loader.style.display = 'none';   
-                    startBtn.style.display = 'block'; 
+                    
+                    // OCULTAR CARGADOR Y MOSTRAR INSTRUCCIONES
+                    loaderContainer.style.display = 'none';   
+                    readyContainer.style.display = 'flex'; 
                     
                     // Corrección de materiales oscuros
                     this.el.object3D.traverse((node) => {
@@ -193,8 +237,33 @@
 <body>
     <div id="ui-layer">
         <img id="logo-img" src="assets/logo.png" alt="Bhastian Logo">
-        <div class="loader"></div>
-        <button id="start-btn">VER EXPERIENCIA</button>
+        
+        <div id="loader-container">
+            <div class="loader"></div>
+            <p class="loading-text">Espere mientras carga la experiencia...</p>
+        </div>
+
+        <div id="ready-container">
+            
+            <div class="instructions-box">
+                <div class="inst-item">
+                    <svg class="inst-icon" viewBox="0 0 24 24">
+                        <path d="M9,11.24V7.5C9,6.12 10.12,5 11.5,5S14,6.12 14,7.5v3.74c1.21-0.81 2-2.18 2-3.74C16,5.01 13.99,3 11.5,3S7,5.01 7,7.5 c0,1.56 0.79,2.93 2,3.74z M18.66,12.35l-2.07-0.52C16.29,11.75 15.93,11.8 15.6,12l-1.1,0.63V7.5C14.5,5.84 13.16,4.5 11.5,4.5 S8.5,5.84 8.5,7.5v8.69l-3.32-0.7c-0.12-0.02-0.24-0.04-0.36-0.04c-0.42,0-0.81,0.17-1.11,0.47l-0.78,0.78l5.58,5.59 c0.67,0.67 1.58,1.05 2.53,1.05h6.39c1.6,0 2.97-1.16 3.23-2.73l0.55-3.29C21.43,15.65 20.35,14.05 18.66,12.35z"/>
+                    </svg>
+                    <span>1 dedo: Rotar</span>
+                </div>
+
+                <div class="inst-item">
+                    <svg class="inst-icon" viewBox="0 0 24 24">
+                        <path d="M21.5,13.8c-0.6-0.3-1.3,0-1.6,0.6l-1.3,2.4c-0.2,0.4-0.5,0.6-0.9,0.5c-0.4-0.1-0.6-0.4-0.5-0.8l1.7-6.2 c0.3-1.2-0.5-2.5-1.7-2.8c-1.2-0.3-2.5,0.5-2.8,1.7l-2.4,8.8c0,0.1-0.1,0.2-0.2,0.2c-0.1,0-0.2-0.1-0.2-0.2l0.8-2.9 c0.2-0.6-0.1-1.3-0.7-1.5c-0.6-0.2-1.3,0.1-1.5,0.7l-1,3.6c-0.5,1.9-1.3,3.7-2.4,5.3l-0.3,0.4c-0.2,0.3,0,0.7,0.4,0.7h13.1 c0.5,0,0.9-0.3,1-0.8l0.9-5.6C22,16.5,22.1,14.2,21.5,13.8z M9.1,11.9l2.4-8.8c0.8-2.8,3.6-4.5,6.4-3.8c2.8,0.8,4.5,3.6,3.8,6.4 l-1.7,6.2c-0.2,0.9-1.2,1.3-2,0.9c-0.4-0.2-0.6-0.5-0.7-0.9l1.3-2.4c0.9-1.6,0.3-3.6-1.3-4.5s-3.6-0.3-4.5,1.3l-1,3.6 c0.4-1.3,1.8-2.1,3.1-1.8c1.3,0.4,2.1,1.8,1.8,3.1l-0.8,2.9c-0.5-0.1-1-0.2-1.6-0.1L9.1,11.9z"/>
+                    </svg>
+                    <span>2 dedos: Zoom</span>
+                </div>
+            </div>
+
+            <button id="start-btn">VER EXPERIENCIA</button>
+        </div>
+
     </div>
 
     <a href="https://wa.me/593983088889?text=Hola%20Bhastian,%20vi%20su%20experiencia%203D" 
@@ -210,7 +279,7 @@
 
         <a-assets>
             <video id="vid" src="assets/xmen2.mp4" preload="auto" loop crossorigin="anonymous" playsinline></video>
-            <a-asset-item id="miModelo" src="assets/PORTADAWOLVERINE3.glb"></a-asset-item>
+            <a-asset-item id="miModelo" src="assets/PORTADAWOLVERINE2.glb"></a-asset-item>
         </a-assets>
 
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
