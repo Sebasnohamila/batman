@@ -2,14 +2,13 @@
 <html>
     <head>
         <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-        <title>Experiencia AR Bhastian</title>
+        <title>Visor 3D Bhastian</title>
 
         <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
-        <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
         <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
 
         <style>
-            body { margin: 0; overflow: hidden; touch-action: none; font-family: 'Arial', sans-serif; }
+            body { margin: 0; overflow: hidden; touch-action: none; font-family: 'Arial', sans-serif; background-color: #333; }
             
             /* --- PANTALLA DE INICIO (SPLASH SCREEN) --- */
             #splash-screen {
@@ -72,7 +71,7 @@
                         mesh.traverse(function (node) {
                             if (node.isMesh && node.material) {
                                 node.material.metalness = 0;
-                                node.material.roughness = 1;
+                                // node.material.roughness = 1; // A veces se ve mejor sin forzar esto en 3D puro
                                 node.material.needsUpdate = true;
                             }
                         });
@@ -85,17 +84,17 @@
                 const splash = document.getElementById('splash-screen');
                 const startBtn = document.getElementById('start-btn');
                 const loader = document.querySelector('.loader');
-                const hudContainer = document.getElementById('hud-container');
+                // Usamos el animatedModel directamente para visibilidad ya que no necesitamos el contenedor HUD
+                const modelEntity = document.getElementById('animatedModel');
                 const video = document.getElementById('vid');
                 const waBtn = document.getElementById('whatsapp-button');
-                const modelEntity = document.getElementById('animatedModel');
+                
 
                 // Simular carga o esperar a que la escena cargue
-                // Aquí esperamos un poco para asegurar que A-Frame esté listo
                 setTimeout(() => {
                     loader.style.display = 'none'; // Ocultar spinner
                     startBtn.style.display = 'block'; // Mostrar botón
-                }, 2500); // 2.5 segundos de carga simulada para branding
+                }, 2500); 
 
                 // ACCIÓN DEL BOTÓN "VER ANIMACIÓN"
                 startBtn.addEventListener('click', () => {
@@ -104,28 +103,24 @@
                     setTimeout(() => { splash.style.display = 'none'; }, 500);
 
                     // 2. Mostrar objetos 3D
-                    hudContainer.setAttribute('visible', 'true');
+                    // En lugar de un contenedor HUD, hacemos visible el modelo directamente
+                    if(modelEntity) {
+                         modelEntity.setAttribute('visible', 'true');
+                         modelEntity.setAttribute('animation-mixer', 'timeScale: 1');
+                    }
                     waBtn.style.display = 'block';
 
-                    // 3. Reproducir Video (Importante hacerlo tras clic del usuario)
+                    // 3. Reproducir Video
                     if(video) {
-                        video.play().then(() => {
-                            console.log("Video reproduciendo");
-                        }).catch(e => {
-                            console.log("Error video:", e);
-                            // Intentar forzar play si falla
-                            video.muted = true; // A veces requieren mute para autplay
+                        video.play().catch(e => {
+                            console.log("Error video autoplay, intentando muted:", e);
+                            video.muted = true; 
                             video.play();
                         });
                     }
-
-                    // 4. Activar animaciones del modelo
-                    if(modelEntity) {
-                        modelEntity.setAttribute('animation-mixer', 'timeScale: 1');
-                    }
                 });
 
-                // --- SISTEMA DE GESTOS TÁCTILES (Sin depender del marcador) ---
+                // --- SISTEMA DE GESTOS TÁCTILES (Funciona igual para rotar el modelo) ---
                 let startX = 0;
                 let startY = 0;
                 let initialDistance = 0;
@@ -133,7 +128,6 @@
 
                 // Touch Start
                 window.addEventListener('touchstart', (e) => {
-                    // Si el splash sigue visible, no hacer nada
                     if (splash.style.display !== 'none') return;
 
                     if(e.touches.length === 1) {
@@ -158,10 +152,10 @@
                         startX = e.touches[0].clientX;
                         startY = e.touches[0].clientY;
 
-                        // Rotar Y
+                        // Rotar Y (Horizontal)
                         modelEntity.object3D.rotation.y += deltaX * 0.01;
                         
-                        // Rotar X (Limitado)
+                        // Rotar X (Vertical) - Mantenemos los límites
                         var newRotX = modelEntity.object3D.rotation.x + (deltaY * 0.01);
                         modelEntity.object3D.rotation.x = Math.min(Math.max(newRotX, -0.5), 0.5);
 
@@ -174,9 +168,9 @@
 
                         var newScale = initialScaleVector.x * scaleFactor;
                         
-                        // Límites de escala
+                        // Límites de escala (quizás necesites ajustarlos para el modo 3D)
                         const minScale = 0.005; 
-                        const maxScale = 0.5;
+                        const maxScale = 0.8; // Aumenté un poco el máximo para el modo 3D
                         newScale = Math.min(Math.max(newScale, minScale), maxScale);
 
                         modelEntity.object3D.scale.set(newScale, newScale, newScale);
@@ -190,11 +184,11 @@
         <div id="splash-screen">
             <img src="assets/logo.png" alt="Logo" class="logo">
             <div class="loader"></div>
-            <p style="color:#666; font-size:12px; margin-bottom:10px;">Cargando experiencia...</p>
+            <p style="color:#666; font-size:12px; margin-bottom:10px;">Cargando visor 3D...</p>
             <button id="start-btn">VER ANIMACIÓN</button>
         </div>
 
-        <a href="https://wa.me/593983088889?text=Hola%20Bhastian,%20me%20interesa." 
+        <a href="https://wa.me/593983088889?text=Hola%20Bhastian,%20vi%20su%20modelo%203D%20y%20me%20interesa." 
            target="_blank" id="whatsapp-button">
            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
         </a>
@@ -202,33 +196,32 @@
         <a-scene
             vr-mode-ui="enabled: false"
             loading-screen="enabled: false;"
-            arjs='sourceType: webcam; debugUIEnabled: false;'
             renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true;"
+            background="color: #333333"
             id="scene" embedded>
 
             <a-assets>
-                <video id="vid" src="assets/assetspiderman.mp4" preload="auto" loop crossorigin webkit-playsinline playsinline></video>
+                <video id="vid" src="assets/batman.mp4" preload="auto" loop crossorigin webkit-playsinline playsinline></video>
                 <a-asset-item id="miModelo" src="assets/spiderman.glb"></a-asset-item>
             </a-assets>
 
-            <a-entity light="type: ambient; intensity: 1.5; color: #ffffff"></a-entity>
-            <a-entity light="type: directional; intensity: 2" position="2 4 4"></a-entity>
+            <a-entity light="type: ambient; intensity: 1; color: #ffffff"></a-entity>
+            <a-entity light="type: directional; intensity: 1.5; castShadow: true" position="3 4 5"></a-entity>
+            <a-entity light="type: directional; intensity: 0.5" position="-3 2 5"></a-entity>
 
-            <a-entity camera>
-                <a-entity id="hud-container" visible="false" position="0 -1 -5">
-                    
-                    <a-entity
-                        id="animatedModel"
-                        gltf-model="#miModelo"
-                        scale="0.010 0.010 0.010"
-                        position="0 0 0" 
-                        rotation="0 0 0" 
-                        animation-mixer="loop: repeat; timeScale: 0"
-                        fix-materials
-                    ></a-entity>
 
-                </a-entity>
-            </a-entity>
+            <a-entity
+                id="animatedModel"
+                visible="false"
+                gltf-model="#miModelo"
+                scale="0.015 0.015 0.015"
+                position="0 0 0" 
+                rotation="0 20 0" 
+                animation-mixer="loop: repeat; timeScale: 0"
+                fix-materials
+            ></a-entity>
+
+            <a-entity camera position="0 1.6 4" look-controls="enabled: false"></a-entity>
 
         </a-scene>
     </body>
