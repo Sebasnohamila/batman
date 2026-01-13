@@ -2,162 +2,164 @@
 <html>
     <head>
         <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-        <title>Visor 3D - MODO DEBUG</title>
+        <title>Visor 3D - Auto Centrado</title>
 
         <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
         <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
 
         <style>
-            body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; background-color: #333; }
+            body { margin: 0; overflow: hidden; font-family: monospace; background-color: #333; }
             
-            /* PANTALLA DE CARGA */
             #splash-screen {
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
                 background-color: white; z-index: 9999;
                 display: flex; flex-direction: column; 
                 justify-content: center; align-items: center;
-                transition: opacity 0.5s ease-out;
             }
-            #splash-screen img.logo { max-width: 50%; margin-bottom: 20px; height: auto; }
-            #start-btn {
-                display: none; padding: 15px 30px; font-size: 18px;
-                background-color: #000; color: #d4af37; border: 2px solid #d4af37;
-                border-radius: 25px; cursor: pointer; text-transform: uppercase;
-                font-weight: bold;
+            #splash-screen button {
+                padding: 20px 40px; font-size: 20px; background: black; color: gold;
+                border: 2px solid gold; border-radius: 10px; cursor: pointer;
             }
 
-            /* HUD CON INFORMACIÓN */
-            #debug-info {
-                position: fixed; top: 10px; left: 10px; color: yellow; 
-                background: rgba(0,0,0,0.5); padding: 5px; z-index: 9990; font-family: monospace;
-                display: none;
+            /* Consola de depuración en pantalla */
+            #debug-console {
+                position: fixed; top: 0; left: 0; width: 100%; 
+                background: rgba(0,0,0,0.8); color: lime; padding: 10px; 
+                pointer-events: none; z-index: 9990; font-size: 14px;
             }
         </style>
 
         <script>
-            // --- MATERIALES ---
-            AFRAME.registerComponent('fix-materials', {
+            // --- LOG EN PANTALLA ---
+            function log(text) {
+                console.log(text);
+                var el = document.getElementById('debug-console');
+                if(el) el.innerText += "\n" + text;
+            }
+
+            // --- COMPONENTE MÁGICO: AUTO-AJUSTE ---
+            AFRAME.registerComponent('auto-adjust-model', {
                 init: function () {
-                    this.el.addEventListener('model-loaded', function (e) {
-                        console.log("Modelo cargado correctamente");
-                        document.getElementById('debug-info').innerText += "\nModelo cargado OK.";
-                        var mesh = e.detail.model;
-                        mesh.traverse(function (node) {
-                            if (node.isMesh && node.material) {
-                                node.material.metalness = 0; 
+                    this.el.addEventListener('model-loaded', (e) => {
+                        log(">> Modelo cargado. Calculando geometría...");
+                        
+                        const object = e.detail.model;
+                        
+                        // 1. Calcular la caja delimitadora (Bounding Box)
+                        const box = new THREE.Box3().setFromObject(object);
+                        const size = new THREE.Vector3();
+                        box.getSize(size);
+                        const center = new THREE.Vector3();
+                        box.getCenter(center);
+
+                        log(`>> Tamaño original: X:${size.x.toFixed(2)} Y:${size.y.toFixed(2)} Z:${size.z.toFixed(2)}`);
+                        log(`>> Centro original desviado en: X:${center.x.toFixed(2)}`);
+
+                        // 2. Resetear posición del objeto interno para centrarlo en su propio eje
+                        object.position.x += (object.position.x - center.x);
+                        object.position.y += (object.position.y - center.y);
+                        object.position.z += (object.position.z - center.z);
+
+                        // 3. Calcular escala para que mida aprox 2 unidades de alto (visible en cámara)
+                        const maxDimension = Math.max(size.x, size.y, size.z);
+                        
+                        if (maxDimension === 0) {
+                            log("ERROR CRÍTICO: El modelo tiene tamaño 0. Archivo corrupto.");
+                            return;
+                        }
+
+                        const targetSize = 2.0; // Queremos que mida 2 metros
+                        const scaleFactor = targetSize / maxDimension;
+
+                        // Aplicar escala al contenedor de A-Frame
+                        this.el.object3D.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                        
+                        log(`>> RE-ESCALADO A: ${scaleFactor.toFixed(4)}`);
+                        log(">> Modelo centrado y listo.");
+
+                        // 4. Arreglar materiales oscuros
+                        object.traverse((node) => {
+                            if (node.isMesh) {
+                                node.material.metalness = 0;
                                 node.material.needsUpdate = true;
                             }
                         });
+                        
+                        // 5. Iniciar animación si existe
+                        this.el.setAttribute('animation-mixer', 'timeScale: 1');
                     });
-                    this.el.addEventListener('model-error', function (e) {
-                        console.error("Error cargando modelo", e);
-                        document.getElementById('debug-info').innerText += "\nERROR: No se encuentra el .GLB";
-                        alert("ERROR: No se encuentra el archivo 'assets/spiderman.glb'");
+
+                    this.el.addEventListener('model-error', (e) => {
+                        log("ERROR: No se pudo cargar el archivo .GLB");
                     });
                 }
             });
 
             document.addEventListener("DOMContentLoaded", () => {
                 const splash = document.getElementById('splash-screen');
-                const startBtn = document.getElementById('start-btn');
-                const modelEntity = document.getElementById('animatedModel');
+                const btn = document.querySelector('#splash-screen button');
                 const video = document.getElementById('vid');
-                const debugInfo = document.getElementById('debug-info');
+                const model = document.getElementById('animatedModel');
 
-                setTimeout(() => {
-                    startBtn.style.display = 'block';
-                }, 1500); 
-
-                startBtn.addEventListener('click', () => {
-                    splash.style.opacity = '0';
-                    setTimeout(() => { splash.style.display = 'none'; }, 500);
-
-                    // Mostrar info de depuración
-                    debugInfo.style.display = 'block';
-                    debugInfo.innerText = "Modo Debug Activo.\nMueve el celular para buscar el objeto.";
-
-                    if(modelEntity) {
-                         modelEntity.setAttribute('visible', 'true');
-                         modelEntity.setAttribute('animation-mixer', 'timeScale: 1');
-                    }
-                    if(video) {
-                        video.play().catch(e => { video.muted = true; video.play(); });
-                    }
+                btn.addEventListener('click', () => {
+                    splash.style.display = 'none';
+                    model.setAttribute('visible', 'true');
+                    if(video) video.play();
                 });
 
-                // --- GESTOS LIBERADOS ---
+                // --- GESTOS SIMPLES (ROTACIÓN Y ZOOM) ---
                 let startX = 0;
-                let startY = 0;
-                let initialScale = 1;
-
-                // Usamos lógica simple para rotar el modelo al arrastrar
-                // Pero dejamos habilitado el "look-controls" de la cámara para que tú busques el objeto
+                
                 window.addEventListener('touchmove', (e) => {
-                    if (splash.style.display !== 'none') return;
-                    
-                    if(e.touches.length === 1) {
-                        // Rotación manual del objeto
-                        let deltaX = e.touches[0].clientX - startX;
+                    if (e.touches.length === 1) {
+                        let delta = e.touches[0].clientX - startX;
                         startX = e.touches[0].clientX;
-                        modelEntity.object3D.rotation.y += deltaX * 0.01;
+                        model.object3D.rotation.y += delta * 0.01;
                     }
                 });
-                
                 window.addEventListener('touchstart', (e) => {
-                     startX = e.touches[0].clientX;
+                    startX = e.touches[0].clientX;
                 });
                 
-                // Zoom con rueda
+                // Zoom rueda mouse
                 window.addEventListener('wheel', (e) => {
-                    let s = modelEntity.object3D.scale.x - (e.deltaY * 0.001);
-                    s = Math.max(0.01, s);
-                    modelEntity.object3D.scale.set(s,s,s);
+                    let s = model.object3D.scale.x;
+                    s += e.deltaY * -0.001; 
+                    s = Math.max(0.0001, s); // Evitar negativos
+                    model.object3D.scale.set(s,s,s);
                 });
             });
         </script>
     </head>
 
     <body>
-        <div id="debug-info">Cargando...</div>
+        <div id="debug-console">Iniciando sistema...</div>
 
         <div id="splash-screen">
-            <img src="assets/logo.png" alt="Logo" class="logo">
-            <p>Cargando...</p>
-            <button id="start-btn">INICIAR (DEBUG)</button>
+            <button>CARGAR MODELO</button>
         </div>
 
-        <a-scene
-            vr-mode-ui="enabled: false"
-            loading-screen="enabled: false;"
+        <a-scene 
+            background="color: #4da6ff" 
             renderer="logarithmicDepthBuffer: true;"
-            background="color: #505050"
-            embedded>
-
+            vr-mode-ui="enabled: false">
+            
             <a-assets>
-                <video id="vid" src="assets/batman.mp4" preload="auto" loop crossorigin webkit-playsinline playsinline></video>
+                <video id="vid" src="assets/batman.mp4" loop crossorigin playsinline></video>
                 <a-asset-item id="miModelo" src="assets/spiderman.glb"></a-asset-item>
             </a-assets>
 
-            <a-entity light="type: ambient; intensity: 3; color: #ffffff"></a-entity>
-            <a-entity light="type: directional; intensity: 2" position="1 1 1"></a-entity>
-            <a-entity light="type: directional; intensity: 2" position="-1 1 1"></a-entity>
+            <a-entity light="type: ambient; intensity: 2"></a-entity>
+            <a-entity light="type: directional; intensity: 1.5" position="1 1 2"></a-entity>
 
-            <a-plane position="0 -0.5 0" rotation="-90 0 0" width="20" height="20" color="#7BC8A4" wireframe="true"></a-plane>
+            <a-entity camera position="0 0 3" look-controls="enabled: false"></a-entity>
 
-            <a-box position="0 0.5 0" color="red" wireframe="true" scale="1 1 1"></a-box>
-
-            <a-entity
-                id="animatedModel"
+            <a-entity 
+                id="animatedModel" 
+                gltf-model="#miModelo" 
                 visible="false"
-                gltf-model="#miModelo"
-                scale="1 1 1"
-                position="0 0 0" 
-                rotation="0 0 0" 
-                animation-mixer="loop: repeat"
-                fix-materials
-            ></a-entity>
-
-            <a-entity camera position="0 1.6 5" look-controls="enabled: true"></a-entity>
+                auto-adjust-model>
+            </a-entity>
 
         </a-scene>
     </body>
