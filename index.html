@@ -1,220 +1,245 @@
 <!doctype html>
-<html>
-    <head>
-        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>Experiencia 3D Bhastian</title>
 
-        <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
-        <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-        <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
 
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; background-color: #111; }
+
+        /* --- PANTALLA DE CARGA Y BIENVENIDA --- */
+        #ui-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: white; z-index: 9999;
+            display: flex; flex-direction: column; 
+            justify-content: center; align-items: center;
+            transition: opacity 0.5s ease-out;
+        }
+
+        #logo-img {
+            max-width: 50%;
+            height: auto;
+            margin-bottom: 20px;
+        }
+
+        /* Rueda de carga */
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #D4AF37; /* Color dorado para Bhastian */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            display: block; /* Visible al inicio */
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Botón de Ver Experiencia (Oculto al inicio) */
+        #start-btn {
+            display: none;
+            padding: 15px 30px;
+            background-color: #000;
+            color: #D4AF37; /* Dorado */
+            border: 2px solid #D4AF37;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 25px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        #start-btn:active { transform: scale(0.95); }
+
+        /* Botón WhatsApp */
+        #whatsapp-button {
+            position: fixed; bottom: 20px; right: 20px; z-index: 9998;
+            display: none; /* Se muestra al entrar */
+        }
+        #whatsapp-button img { width: 50px; height: 50px; filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.5)); }
+
+    </style>
+
+    <script>
+        // --- COMPONENTE 1: CONTROLADOR DEL VISOR 3D ---
+        AFRAME.registerComponent('model-viewer', {
+            init: function () {
+                this.model = this.el;
+                this.isInteractable = false;
+
+                // Variables para gestos
+                this.startX = 0;
+                this.startY = 0;
+                this.initialScaleVector = new THREE.Vector3();
+                this.initialDistance = 0;
+
+                // Límite de 60 grados en radianes (60 * PI / 180)
+                this.limitRad = 60 * (Math.PI / 180); 
+
+                // --- MANEJO DE LA CARGA ---
+                const scene = document.querySelector('a-scene');
+                const uiLayer = document.getElementById('ui-layer');
+                const loader = document.querySelector('.loader');
+                const startBtn = document.getElementById('start-btn');
+                const waBtn = document.getElementById('whatsapp-button');
+                const videoAudio = document.getElementById('vid');
+
+                // Cuando el modelo 3D se carga
+                this.el.addEventListener('model-loaded', () => {
+                    console.log("Modelo cargado");
+                    // Ocultamos spinner y mostramos botón
+                    loader.style.display = 'none';
+                    startBtn.style.display = 'block';
+                    
+                    // Corrección materiales (metalness)
+                    this.el.object3D.traverse((node) => {
+                        if (node.isMesh && node.material) {
+                            node.material.metalness = 0;
+                            node.material.roughness = 1;
+                        }
+                    });
+                });
+
+                // Acción del botón "VER EXPERIENCIA"
+                startBtn.addEventListener('click', () => {
+                    // 1. Desvanecer capa de carga
+                    uiLayer.style.opacity = '0';
+                    setTimeout(() => { uiLayer.style.display = 'none'; }, 500);
+
+                    // 2. Activar interacción y UI
+                    this.isInteractable = true;
+                    waBtn.style.display = 'block';
+
+                    // 3. Reproducir Audio/Video (Necesario interacción de usuario)
+                    if(videoAudio) {
+                        videoAudio.play().then(() => {
+                            videoAudio.volume = 1.0;
+                        }).catch(e => console.error("Error audio:", e));
+                    }
+
+                    // 4. Iniciar animación del modelo
+                    this.el.setAttribute('animation-mixer', 'timeScale: 1');
+                });
+
+                // --- GESTOS TÁCTILES ---
+                
+                // Touch Start
+                window.addEventListener('touchstart', (e) => {
+                    if (!this.isInteractable) return;
+
+                    if (e.touches.length === 1) {
+                        this.startX = e.touches[0].clientX;
+                        this.startY = e.touches[0].clientY;
+                    } else if (e.touches.length === 2) {
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        this.initialDistance = Math.sqrt(dx * dx + dy * dy);
+                        this.initialScaleVector.copy(this.el.object3D.scale);
+                    }
+                });
+
+                // Touch Move (Rotación limitada y Zoom)
+                window.addEventListener('touchmove', (e) => {
+                    if (!this.isInteractable) return;
+
+                    if (e.touches.length === 1) {
+                        // Un dedo: ROTACIÓN
+                        const deltaX = e.touches[0].clientX - this.startX;
+                        const deltaY = e.touches[0].clientY - this.startY;
+
+                        this.startX = e.touches[0].clientX;
+                        this.startY = e.touches[0].clientY;
+
+                        // Sensibilidad
+                        const speed = 0.005;
+
+                        // Calcular nueva rotación Y (Horizontal)
+                        let newRotY = this.el.object3D.rotation.y + (deltaX * speed);
+                        // CLAMP (Limitar) a +/- 60 grados
+                        newRotY = Math.max(-this.limitRad, Math.min(this.limitRad, newRotY));
+                        this.el.object3D.rotation.y = newRotY;
+
+                        // Calcular nueva rotación X (Vertical)
+                        let newRotX = this.el.object3D.rotation.x + (deltaY * speed);
+                        // CLAMP (Limitar) a +/- 60 grados (o ajusta según prefieras, ej: -30 a 30)
+                        newRotX = Math.max(-this.limitRad, Math.min(this.limitRad, newRotX));
+                        this.el.object3D.rotation.x = newRotX;
+
+                    } else if (e.touches.length === 2 && this.initialDistance > 0) {
+                        // Dos dedos: ZOOM
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        const currentDistance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        const scaleFactor = currentDistance / this.initialDistance;
+
+                        let newX = this.initialScaleVector.x * scaleFactor;
+                        let newY = this.initialScaleVector.y * scaleFactor;
+                        let newZ = this.initialScaleVector.z * scaleFactor;
+
+                        // Limites del Zoom
+                        const minScale = 0.005; // Ajusta según tu modelo
+                        const maxScale = 0.03;  // Ajusta según tu modelo
+
+                        newX = Math.max(minScale, Math.min(maxScale, newX));
+                        newY = Math.max(minScale, Math.min(maxScale, newY));
+                        newZ = Math.max(minScale, Math.min(maxScale, newZ));
+
+                        this.el.object3D.scale.set(newX, newY, newZ);
+                    }
+                });
+            }
+        });
+    </script>
+</head>
+
+<body>
+    <div id="ui-layer">
+        <img id="logo-img" src="assets/logo.png" alt="Bhastian Logo">
         
-        <style>
-            body { margin: 0; overflow: hidden; touch-action: none; font-family: Arial, sans-serif;}
-            
-            /* PANTALLA DE CARGA */
-            #splash-screen {
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background-color: white; z-index: 9999;
-                display: flex; justify-content: center; align-items: center;
-                transition: opacity 1s ease-out;
-            }
-            #splash-screen img { max-width: 60%; height: auto; }
-            .arjs-ready #splash-screen { opacity: 0; pointer-events: none; }
+        <div class="loader"></div>
+        
+        <button id="start-btn">VER EXPERIENCIA</button>
+    </div>
 
-            /* ESTILOS DEL BOTÓN DE WHATSAPP */
-            #whatsapp-button {
-                display: none; 
-                position: fixed;
-                bottom: 15px; 
-                left: 15px;      
-                z-index: 9998;
-                background-color: transparent;
-                padding: 0;
-                border: none;
-                transform: none;
-                transition: transform 0.1s;
-            }
-            #whatsapp-button img {
-                width: 30px;   
-                height: 30px;
-                filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.5)); 
-            }
-            #whatsapp-button:active {
-                transform: scale(0.9); 
-            }
-        </style>
+    <a href="https://wa.me/593983088889?text=Hola%20Bhastian,%20me%20interesa%20tu%20trabajo." 
+       target="_blank" id="whatsapp-button">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+    </a>
 
-        <script>
-            // --- COMPONENTE 1: ARREGLAR MATERIALES NEGROS ---
-            AFRAME.registerComponent('fix-materials', {
-                init: function () {
-                    this.el.addEventListener('model-loaded', function (e) {
-                        var mesh = e.detail.model;
-                        mesh.traverse(function (node) {
-                            if (node.isMesh && node.material) {
-                                node.material.metalness = 0;
-                                node.material.roughness = 1;
-                                node.material.needsUpdate = true;
-                            }
-                        });
-                        console.log("Materiales corregidos (Metalness removido)");
-                    });
-                }
-            });
+    <a-scene 
+        renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true;"
+        vr-mode-ui="enabled: false"
+        loading-screen="enabled: false"
+        background="color: #f0f0f0"> <a-assets>
+            <video id="vid" src="assets/assetspiderman.mp4" preload="auto" loop crossorigin="anonymous" playsinline></video>
+            <a-asset-item id="miModelo" src="assets/spiderman.glb"></a-asset-item>
+        </a-assets>
 
-            // --- COMPONENTE 2: CONTROLADOR PRINCIPAL (Gestos y Video) ---
-            AFRAME.registerComponent('master-controller', {
-                init: function () {
-                    this.marker = document.querySelector("#markerA");
-                    this.hud = document.querySelector("#hud-container");
-                    
-                    this.vid = document.querySelector("#vid");
-                    this.model = document.querySelector("#animatedModel");
-                    this.waButton = document.querySelector("#whatsapp-button");
-                    
-                    this.isUnlocked = false; 
-                    
-                    this.startX = 0;
-                    this.startY = 0;
-                    this.initialDistance = 0;
-                    this.initialScaleVector = new THREE.Vector3();
+        <a-entity light="type: ambient; intensity: 1; color: #ffffff"></a-entity>
+        <a-entity light="type: directional; intensity: 1.5" position="2 4 4" cast-shadow="true"></a-entity>
+        <a-entity light="type: point; intensity: 0.5" position="-2 2 2"></a-entity>
 
-                    this.marker.addEventListener('markerFound', () => {
-                        if (this.isUnlocked) return;
-                        console.log("¡Marcador detectado!");
-                        this.isUnlocked = true;
-                        
-                        this.hud.setAttribute('visible', 'true');
-                        this.waButton.style.display = "block"; 
-                        
-                        if(this.vid){
-                            this.vid.play().catch(e => console.log("Error reproduciendo audio:", e));
-                            this.vid.volume = 1.0; 
-                        }
+        <a-entity camera position="0 1.5 3" look-controls="enabled: false"></a-entity>
 
-                        if (this.model) this.model.setAttribute('animation-mixer', 'timeScale: 1');
-                    });
+        <a-entity 
+            id="animatedModel"
+            gltf-model="#miModelo"
+            scale="0.012 0.012 0.012"
+            position="0 0 0" 
+            rotation="0 0 0"
+            model-viewer
+        ></a-entity>
 
-                    window.addEventListener('touchstart', (e) => {
-                        if (!this.isUnlocked) return;
-                        
-                        if(this.vid && this.vid.paused){
-                            this.vid.play();
-                        }
-
-                        if(e.touches.length === 1) {
-                            this.startX = e.touches[0].clientX;
-                            this.startY = e.touches[0].clientY;
-                        } else if (e.touches.length === 2) {
-                            var dx = e.touches[0].clientX - e.touches[1].clientX;
-                            var dy = e.touches[0].clientY - e.touches[1].clientY;
-                            this.initialDistance = Math.sqrt(dx * dx + dy * dy);
-                            this.initialScaleVector.copy(this.model.object3D.scale);
-                        }
-                    });
-
-                    window.addEventListener('touchmove', (e) => {
-                        if (!this.isUnlocked) return;
-                        
-                        if(e.touches.length === 1) {
-                            var deltaX = e.touches[0].clientX - this.startX;
-                            var deltaY = e.touches[0].clientY - this.startY;
-
-                            this.startX = e.touches[0].clientX;
-                            this.startY = e.touches[0].clientY;
-
-                            // Rotación Y (Horizontal)
-                            var newRotationY = this.model.object3D.rotation.y + (deltaX * 0.01);
-                            const minY = -0.8;
-                            const maxY = 0.8;
-                            this.model.object3D.rotation.y = Math.min(Math.max(newRotationY, minY), maxY);
-
-                            // Rotación X (Vertical)
-                            var newRotationX = this.model.object3D.rotation.x + (deltaY * 0.01);
-                            const minX = 0.0; 
-                            const maxX = 0.8;
-                            this.model.object3D.rotation.x = Math.min(Math.max(newRotationX, minX), maxX);
-                        } 
-                        else if (e.touches.length === 2 && this.initialDistance > 0) {
-                             var dx = e.touches[0].clientX - e.touches[1].clientX;
-                             var dy = e.touches[0].clientY - e.touches[1].clientY;
-                             var currentDistance = Math.sqrt(dx * dx + dy * dy);
-                             
-                             var scaleFactor = currentDistance / this.initialDistance;
-
-                             var newX = this.initialScaleVector.x * scaleFactor;
-                             var newY = this.initialScaleVector.y * scaleFactor;
-                             var newZ = this.initialScaleVector.z * scaleFactor;
-
-                             // --- AQUI ESTA EL CAMBIO IMPORTANTE ---
-                             // minScale está puesto exactamente en 0.012 (tu tamaño original)
-                             // Esto permite agrandar y volver a achicar, pero NUNCA bajar de 0.012
-                             const minScale = 0.012; 
-                             const maxScale = 0.35;  
-
-                             newX = Math.min(Math.max(newX, minScale), maxScale);
-                             newY = Math.min(Math.max(newY, minScale), maxScale);
-                             newZ = Math.min(Math.max(newZ, minScale), maxScale);
-
-                             this.model.object3D.scale.set(newX, newY, newZ);
-                        }
-                    });
-                }
-            });
-
-            window.addEventListener('arjs-video-loaded', function(e) {
-                setTimeout(() => { document.body.classList.add('arjs-ready'); }, 1000);
-            });
-            // Fallback
-            setTimeout(() => { document.body.classList.add('arjs-ready'); }, 6000);
-        </script>
-    </head>
-
-    <body>
-        <div id="splash-screen"><img src="assets/logo.png" alt="Cargando Bhastian AR..."></div>
-
-        <a href="https://wa.me/593983088889?text=Hola%20Bhastian,%20vi%20su%20experiencia%20AR%20y%20me%20interesa." 
-           target="_blank" 
-           id="whatsapp-button">
-           <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp Icon">
-        </a>
-
-        <a-scene
-            master-controller
-            vr-mode-ui="enabled: false"
-            loading-screen="enabled: false;"
-            arjs='sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;'
-            renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true;" 
-            id="scene" 
-            embedded 
-        >
-            <a-assets>
-                <video id="vid" src="assets/assetspiderman.mp4" preload="auto" loop crossorigin webkit-playsinline playsinline></video>
-                <a-asset-item id="miModelo" src="assets/spiderman.glb"></a-asset-item>
-            </a-assets>
-
-            <a-entity light="type: ambient; intensity: 1.5; color: #ffffff"></a-entity>
-            <a-entity light="type: directional; intensity: 2" position="2 4 4"></a-entity>
-
-            <a-entity camera>
-                <a-entity id="hud-container" visible="false" position="0 0 -6">
-                    
-                    <a-entity
-                        id="animatedModel"
-                        gltf-model="#miModelo"
-                        scale="0.012 0.012 0.012"
-                        position="0 -1.5 0" 
-                        rotation="0 0 0" 
-                        animation-mixer="loop: repeat"
-                        fix-materials
-                    ></a-entity>
-
-                </a-entity>
-            </a-entity>
-
-            <a-marker type="pattern" preset="custom" url="assets/marker.patt" id="markerA">
-            </a-marker>
-
-        </a-scene>
-    </body>
+    </a-scene>
+</body>
 </html>
